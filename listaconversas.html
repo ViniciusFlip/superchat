@@ -1,7 +1,5 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,86 +11,54 @@
 
 <body class="bg-gray-100 min-h-screen">
 
-  <main class="max-w-md mx-auto min-h-screen bg-white">
+  <div class="max-w-2xl mx-auto p-4">
 
-    <!-- TOPO -->
-    <header class="p-4 border-b flex items-center justify-between">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold text-gray-900">
+        Conversas
+      </h1>
 
-      <div>
-        <h1 class="text-xl font-bold">
-          Conversas
-        </h1>
-
-        <p
-          id="status"
-          class="text-xs text-gray-400"
-        >
-          Carregando...
-        </p>
-      </div>
-
-      <a
-        href="novaconversa.html"
-        class="bg-black text-white px-4 py-2 rounded-xl text-sm"
-      >
-        Nova
-      </a>
-
+      <p class="text-sm text-gray-500">
+        Atendimento
+      </p>
     </header>
 
+    <div id="status" class="text-sm text-gray-500 mb-4">
+      Conectando...
+    </div>
 
-    <!-- LISTA -->
-    <section id="lista">
+    <div id="lista" class="space-y-3"></div>
 
-      <div class="p-8 text-center text-gray-400">
-        Carregando conversas...
-      </div>
-
-    </section>
-
-  </main>
+  </div>
 
 
   <script type="module">
+
+    import {
+      initializeApp
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+    import {
+      getAuth,
+      onAuthStateChanged,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      collection,
+      query,
+      where,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
 
     // =====================================================
     // FIREBASE
     // =====================================================
 
-    import {
-      initializeApp
-    } from
-      "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
-
-    import {
-      getAuth,
-      signInAnonymously,
-      onAuthStateChanged
-    } from
-      "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-
-    import {
-      getFirestore,
-      doc,
-      setDoc,
-      serverTimestamp,
-      collection,
-      query,
-      where,
-      orderBy,
-      onSnapshot
-    } from
-      "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
-
-    // =====================================================
-    // SUAS CREDENCIAIS
-    // =====================================================
-
     const firebaseConfig = {
-
-    
-  apiKey: "AIzaSyD-xzRjMRVUpey19g745DvPjjpCApqSHVE",
+    apiKey: "AIzaSyD-xzRjMRVUpey19g745DvPjjpCApqSHVE",
   authDomain: "myops-d7525.firebaseapp.com",
   projectId: "myops-d7525",
   storageBucket: "myops-d7525.firebasestorage.app",
@@ -102,197 +68,130 @@
 
 
     // =====================================================
+    // UID DO GESTOR
+    // =====================================================
+
+    const GESTOR_UID = "COLOQUE_SEU_UID_AQUI";
+
+
+    // =====================================================
     // FIREBASE
     // =====================================================
 
-    const app =
-      initializeApp(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
 
-    const auth =
-      getAuth(app);
+    const auth = getAuth(app);
 
-    const db =
-      getFirestore(app);
+    const db = getFirestore(app);
 
 
-    const lista =
-      document.getElementById("lista");
-
-    const status =
-      document.getElementById("status");
+    const status = document.getElementById("status");
+    const lista = document.getElementById("lista");
 
 
     // =====================================================
-    // ENTRAR
+    // LISTA EM TEMPO REAL
     // =====================================================
 
-    async function iniciar() {
+    function ouvirConversas() {
 
-      try {
-
-        status.textContent =
-          "Entrando...";
-
-
-        const resultado =
-          await signInAnonymously(auth);
-
-
-        const user =
-          resultado.user;
-
-
-        // Garantir cadastro
-        await setDoc(
-          doc(db, "users", user.uid),
-          {
-
-            uid: user.uid,
-
-            name: "Usuário",
-
-            lastLogin:
-              serverTimestamp()
-
-          },
-          {
-            merge: true
-          }
-        );
-
-
-        status.textContent =
-          "Online";
-
-
-        carregarConversas(user.uid);
-
-
-      } catch (error) {
-
-        console.error(error);
-
-        status.textContent =
-          "Erro";
-
-        lista.innerHTML = `
-          <div class="p-8 text-center text-red-500">
-            ${error.message}
-          </div>
-        `;
-
-      }
-
-    }
-
-
-    // =====================================================
-    // LISTAR CONVERSAS
-    // =====================================================
-
-    function carregarConversas(uid) {
-
-      const q =
-        query(
-          collection(db, "conversations"),
-
-          where(
-            "participants",
-            "array-contains",
-            uid
-          ),
-
-          orderBy(
-            "updatedAt",
-            "desc"
-          )
-        );
+      const q = query(
+        collection(db, "conversations"),
+        where("gestorId", "==", GESTOR_UID)
+      );
 
 
       onSnapshot(
         q,
 
-        (snapshot) => {
+        snapshot => {
+
+          const conversas = [];
+
+
+          snapshot.forEach(doc => {
+
+            conversas.push({
+              id: doc.id,
+              ...doc.data()
+            });
+
+          });
+
+
+          // Mais recente primeiro
+          conversas.sort((a, b) => {
+
+            const aTime = a.updatedAt?.seconds || 0;
+            const bTime = b.updatedAt?.seconds || 0;
+
+            return bTime - aTime;
+
+          });
+
 
           lista.innerHTML = "";
 
 
-          if (snapshot.empty) {
+          if (conversas.length === 0) {
 
-            lista.innerHTML = `
-              <div class="p-10 text-center">
-
-                <div class="text-gray-400">
-                  Nenhuma conversa
-                </div>
-
-                <a
-                  href="novaconversa.html"
-                  class="inline-block mt-4 bg-black text-white px-4 py-2 rounded-xl"
-                >
-                  Iniciar conversa
-                </a>
-
-              </div>
-            `;
+            status.textContent =
+              "Nenhuma conversa ainda.";
 
             return;
-
           }
 
 
-          snapshot.forEach((documento) => {
-
-            const conversa =
-              documento.data();
+          status.textContent =
+            `${conversas.length} conversa(s)`;
 
 
-            const outroUid =
-              conversa.participants.find(
-                id => id !== uid
-              );
+          conversas.forEach(conversa => {
+
+            const item = document.createElement("a");
+
+            item.href =
+              `chat.html?id=${encodeURIComponent(conversa.id)}`;
+
+            item.className = `
+              block
+              bg-white
+              border
+              border-gray-200
+              rounded-2xl
+              p-4
+              hover:bg-gray-50
+              transition
+            `;
 
 
             const nome =
-              conversa.names?.[outroUid] ||
-              "Usuário";
+              conversa.userName || "Usuário";
 
 
-            const mensagem =
+            const ultimaMensagem =
               conversa.lastMessage ||
-              "Nova conversa";
-
-
-            const item =
-              document.createElement("a");
-
-
-            item.href =
-              `chat.html?id=${documento.id}`;
-
-
-            item.className =
-              "flex items-center gap-3 p-4 border-b hover:bg-gray-50";
+              "Nenhuma mensagem ainda";
 
 
             item.innerHTML = `
 
-              <div
-                class="w-12 h-12 rounded-full bg-gray-200
-                       flex items-center justify-center
-                       font-bold text-gray-600"
-              >
-                ${nome.charAt(0).toUpperCase()}
-              </div>
+              <div class="flex items-center justify-between gap-4">
 
-              <div class="flex-1 min-w-0">
+                <div class="min-w-0">
 
-                <div class="font-semibold truncate">
-                  ${nome}
+                  <div class="font-semibold text-gray-900">
+                    ${nome}
+                  </div>
+
+                  <div class="text-sm text-gray-500 truncate mt-1">
+                    ${ultimaMensagem}
+                  </div>
+
                 </div>
 
-                <div class="text-sm text-gray-500 truncate">
-                  ${mensagem}
+                <div class="text-gray-400">
+                  →
                 </div>
 
               </div>
@@ -306,18 +205,13 @@
 
         },
 
-        (error) => {
+
+        error => {
 
           console.error(error);
 
-          lista.innerHTML = `
-            <div class="p-8 text-center text-red-500">
-              Erro ao carregar conversas.
-              <div class="text-xs mt-2">
-                ${error.message}
-              </div>
-            </div>
-          `;
+          status.textContent =
+            "Erro na conexão com o Firebase.";
 
         }
 
@@ -327,30 +221,23 @@
 
 
     // =====================================================
-    // OBSERVAR LOGIN
+    // AUTENTICAÇÃO
     // =====================================================
 
-    onAuthStateChanged(
-      auth,
-      (user) => {
+    onAuthStateChanged(auth, user => {
 
-        if (user) {
+      if (user) {
 
-          carregarConversas(
-            user.uid
-          );
-
-        }
+        ouvirConversas();
 
       }
-    );
+
+    });
 
 
-    iniciar();
+    signInAnonymously(auth);
 
   </script>
 
 </body>
-
 </html>
-

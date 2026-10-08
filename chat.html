@@ -1,4 +1,4 @@
-
+  
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Chat</title>
+  <title>Conversa</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -16,21 +16,18 @@
   <main class="max-w-md mx-auto h-screen bg-white flex flex-col">
 
     <!-- TOPO -->
-    <header class="p-4 border-b flex items-center gap-3">
+    <header class="p-4 border-b">
 
-      <a
-        href="listaconversas.html"
-        class="text-2xl"
-      >
-        ←
-      </a>
+      <h1 class="font-bold">
+        Atendimento
+      </h1>
 
-      <div
-        id="nome"
-        class="font-bold"
+      <p
+        id="status"
+        class="text-xs text-gray-400"
       >
-        Carregando...
-      </div>
+        Conectando...
+      </p>
 
     </header>
 
@@ -39,13 +36,7 @@
     <section
       id="mensagens"
       class="flex-1 overflow-y-auto p-4 space-y-2"
-    >
-
-      <div class="text-center text-gray-400">
-        Carregando...
-      </div>
-
-    </section>
+    ></section>
 
 
     <!-- ENVIO -->
@@ -94,32 +85,40 @@
       getFirestore,
       doc,
       getDoc,
-      collection,
+      setDoc,
       addDoc,
       updateDoc,
-      onSnapshot,
+      collection,
       query,
       orderBy,
-      serverTimestamp,
-      setDoc
+      onSnapshot,
+      serverTimestamp
     } from
       "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 
     // =====================================================
-    // SUAS CREDENCIAIS
+    // CREDENCIAIS FIREBASE
     // =====================================================
 
     const firebaseConfig = {
 
-  
   apiKey: "AIzaSyD-xzRjMRVUpey19g745DvPjjpCApqSHVE",
   authDomain: "myops-d7525.firebaseapp.com",
   projectId: "myops-d7525",
   storageBucket: "myops-d7525.firebasestorage.app",
   messagingSenderId: "247824192162",
   appId: "1:247824192162:web:77c91ab1e3df855dc7fdfb"
+
     };
+
+
+    // =====================================================
+    // UID DO GESTOR
+    // =====================================================
+
+    const GESTOR_UID =
+      "COLOQUE_SEU_UID_AQUI";
 
 
     // =====================================================
@@ -140,43 +139,17 @@
     // ELEMENTOS
     // =====================================================
 
-    const nome =
-      document.getElementById("nome");
-
     const mensagens =
       document.getElementById("mensagens");
-
-    const form =
-      document.getElementById("form");
 
     const texto =
       document.getElementById("texto");
 
+    const form =
+      document.getElementById("form");
 
-    // =====================================================
-    // ID DA CONVERSA
-    // =====================================================
-
-    const params =
-      new URLSearchParams(
-        window.location.search
-      );
-
-    const conversaId =
-      params.get("id");
-
-
-    if (!conversaId) {
-
-      nome.textContent =
-        "Conversa inválida";
-
-      mensagens.innerHTML = "";
-
-      form.style.display =
-        "none";
-
-    }
+    const status =
+      document.getElementById("status");
 
 
     // =====================================================
@@ -185,22 +158,18 @@
 
     async function iniciar() {
 
-      if (!conversaId) return;
-
-
       try {
 
         // Login anônimo
         const resultado =
           await signInAnonymously(auth);
 
-
         const user =
           resultado.user;
 
 
         // =================================================
-        // GARANTIR USUÁRIO
+        // USUÁRIO
         // =================================================
 
         await setDoc(
@@ -211,9 +180,14 @@
           ),
           {
 
-            uid: user.uid,
+            uid:
+              user.uid,
 
-            name: "Usuário",
+            name:
+              "Usuário",
+
+            role:
+              "user",
 
             lastLogin:
               serverTimestamp()
@@ -226,8 +200,18 @@
 
 
         // =================================================
-        // BUSCAR CONVERSA
+        // ID FIXO DA CONVERSA
         // =================================================
+
+        const ids = [
+          user.uid,
+          GESTOR_UID
+        ].sort();
+
+
+        const conversaId =
+          ids.join("_");
+
 
         const conversaRef =
           doc(
@@ -237,42 +221,38 @@
           );
 
 
-        const conversaSnap =
-          await getDoc(conversaRef);
-
-
-        if (!conversaSnap.exists()) {
-
-          nome.textContent =
-            "Conversa não encontrada";
-
-          form.style.display =
-            "none";
-
-          mensagens.innerHTML = "";
-
-          return;
-
-        }
-
-
-        const conversa =
-          conversaSnap.data();
-
-
         // =================================================
-        // OUTRO USUÁRIO
+        // CRIAR CONVERSA
         // =================================================
 
-        const outroUid =
-          conversa.participants.find(
-            id => id !== user.uid
-          );
+        await setDoc(
+          conversaRef,
+          {
+
+            participants:
+              ids,
+
+            userId:
+              user.uid,
+
+            gestorId:
+              GESTOR_UID,
+
+            lastMessage:
+              "",
+
+            updatedAt:
+              serverTimestamp()
+
+          },
+          {
+            merge: true
+          }
+        );
 
 
-        nome.textContent =
-          conversa.names?.[outroUid] ||
-          "Usuário";
+        status.textContent =
+          "Online";
 
 
         // =================================================
@@ -337,7 +317,7 @@
                       ${
                         minha
                           ? "bg-black text-white"
-                          : "bg-gray-200 text-gray-900"
+                          : "bg-gray-200"
                       }
                     "
                   >
@@ -347,9 +327,7 @@
                 `;
 
 
-                mensagens.appendChild(
-                  item
-                );
+                mensagens.appendChild(item);
 
               }
             );
@@ -363,7 +341,7 @@
 
 
         // =================================================
-        // ENVIAR
+        // ENVIAR MENSAGEM
         // =================================================
 
         form.onsubmit =
@@ -388,7 +366,8 @@
                 mensagensRef,
                 {
 
-                  text: valor,
+                  text:
+                    valor,
 
                   senderId:
                     user.uid,
@@ -419,7 +398,7 @@
               console.error(error);
 
               alert(
-                "Erro ao enviar mensagem."
+                error.message
               );
 
             }
@@ -431,14 +410,12 @@
 
         console.error(error);
 
-        nome.textContent =
+        status.textContent =
           "Erro";
 
-        mensagens.innerHTML = `
-          <div class="text-center text-red-500">
-            ${error.message}
-          </div>
-        `;
+        alert(
+          error.message
+        );
 
       }
 
@@ -452,4 +429,4 @@
 </body>
 
 </html>
-
+ 

@@ -1,4 +1,4 @@
-```html
+  
 <!DOCTYPE html>
 <html lang="pt-BR">
 
@@ -6,9 +6,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Entrar</title>
+  <title>Chat</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
 
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
@@ -20,7 +21,7 @@
     </h1>
 
     <p class="text-gray-500 mb-6">
-      Entre para continuar
+      Entre para falar conosco.
     </p>
 
     <button
@@ -34,7 +35,7 @@
       id="status"
       class="mt-4 text-sm text-gray-500 text-center"
     >
-      Aguardando...
+      Pronto.
     </div>
 
   </main>
@@ -53,8 +54,7 @@
 
     import {
       getAuth,
-      signInAnonymously,
-      onAuthStateChanged
+      signInAnonymously
     } from
       "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 
@@ -68,12 +68,11 @@
 
 
     // =====================================================
-    // SUAS CREDENCIAIS
+    // CREDENCIAIS FIREBASE
     // =====================================================
 
     const firebaseConfig = {
 
-     
   apiKey: "AIzaSyD-xzRjMRVUpey19g745DvPjjpCApqSHVE",
   authDomain: "myops-d7525.firebaseapp.com",
   projectId: "myops-d7525",
@@ -85,7 +84,15 @@
 
 
     // =====================================================
-    // INICIAR FIREBASE
+    // UID DO GESTOR
+    // =====================================================
+
+    const GESTOR_UID =
+      "COLOQUE_SEU_UID_AQUI";
+
+
+    // =====================================================
+    // FIREBASE
     // =====================================================
 
     const app =
@@ -115,8 +122,11 @@
 
         entrar.disabled = true;
 
-        status.textContent =
+        entrar.textContent =
           "Entrando...";
+
+        status.textContent =
+          "Conectando...";
 
 
         // Login anônimo
@@ -128,19 +138,31 @@
           resultado.user;
 
 
-        // Cadastro básico
+        // =================================================
+        // CADASTRO BÁSICO DO USUÁRIO
+        // =================================================
+
         await setDoc(
-          doc(db, "users", user.uid),
+          doc(
+            db,
+            "users",
+            user.uid
+          ),
           {
 
-            uid: user.uid,
+            uid:
+              user.uid,
 
-            name: "Usuário",
+            name:
+              "Usuário",
 
-            createdAt:
-              serverTimestamp(),
+            role:
+              "user",
 
             lastLogin:
+              serverTimestamp(),
+
+            createdAt:
               serverTimestamp()
 
           },
@@ -150,61 +172,41 @@
         );
 
 
-        status.innerHTML = `
-          <div class="text-green-600 font-medium">
-            Entrada realizada!
-          </div>
-
-          <div class="mt-2 text-xs break-all text-gray-400">
-            UID: ${user.uid}
-          </div>
-        `;
+        status.textContent =
+          "Abrindo conversa...";
 
 
-        // Por enquanto NÃO redireciona.
-        // Primeiro vamos confirmar que o teste funciona.
+        // =================================================
+        // IR DIRETO PARA O CHAT
+        // =================================================
 
+        window.location.href =
+          "chat.html";
 
-      } catch (error) {
+      }
+
+      catch (error) {
 
         console.error(error);
 
-        status.innerHTML = `
-          <div class="text-red-600">
-            Erro ao entrar
-          </div>
-
-          <div class="mt-2 text-xs break-all">
-            ${error.message}
-          </div>
-        `;
-
         entrar.disabled = false;
+
+        entrar.textContent =
+          "Entrar";
+
+        status.innerHTML = `
+          <span class="text-red-500">
+            ${error.message}
+          </span>
+        `;
 
       }
 
     };
 
-
-    // =====================================================
-    // VERIFICAR USUÁRIO
-    // =====================================================
-
-    onAuthStateChanged(auth, (user) => {
-
-      if (user) {
-
-        console.log(
-          "Usuário autenticado:",
-          user.uid
-        );
-
-      }
-
-    });
-
   </script>
 
 </body>
+
 </html>
-```
+ 
