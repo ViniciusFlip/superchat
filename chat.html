@@ -1,0 +1,455 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Chat</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100">
+
+  <main class="max-w-md mx-auto h-screen bg-white flex flex-col">
+
+    <!-- TOPO -->
+    <header class="p-4 border-b flex items-center gap-3">
+
+      <a
+        href="listaconversas.html"
+        class="text-2xl"
+      >
+        ←
+      </a>
+
+      <div
+        id="nome"
+        class="font-bold"
+      >
+        Carregando...
+      </div>
+
+    </header>
+
+
+    <!-- MENSAGENS -->
+    <section
+      id="mensagens"
+      class="flex-1 overflow-y-auto p-4 space-y-2"
+    >
+
+      <div class="text-center text-gray-400">
+        Carregando...
+      </div>
+
+    </section>
+
+
+    <!-- ENVIO -->
+    <form
+      id="form"
+      class="p-3 border-t flex gap-2"
+    >
+
+      <input
+        id="texto"
+        type="text"
+        placeholder="Digite uma mensagem..."
+        autocomplete="off"
+        class="flex-1 border rounded-xl px-3 py-3 outline-none"
+      >
+
+      <button
+        class="bg-black text-white px-4 rounded-xl"
+      >
+        Enviar
+      </button>
+
+    </form>
+
+  </main>
+
+
+  <script type="module">
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    import {
+      initializeApp
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+    import {
+      getAuth,
+      signInAnonymously
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      collection,
+      addDoc,
+      updateDoc,
+      onSnapshot,
+      query,
+      orderBy,
+      serverTimestamp,
+      setDoc
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    // =====================================================
+    // SUAS CREDENCIAIS
+    // =====================================================
+
+    const firebaseConfig = {
+
+      apiKey: "COLOQUE_AQUI",
+      authDomain: "COLOQUE_AQUI",
+      projectId: "COLOQUE_AQUI",
+      storageBucket: "COLOQUE_AQUI",
+      messagingSenderId: "COLOQUE_AQUI",
+      appId: "COLOQUE_AQUI"
+
+    };
+
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    const db =
+      getFirestore(app);
+
+
+    // =====================================================
+    // ELEMENTOS
+    // =====================================================
+
+    const nome =
+      document.getElementById("nome");
+
+    const mensagens =
+      document.getElementById("mensagens");
+
+    const form =
+      document.getElementById("form");
+
+    const texto =
+      document.getElementById("texto");
+
+
+    // =====================================================
+    // ID DA CONVERSA
+    // =====================================================
+
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
+
+    const conversaId =
+      params.get("id");
+
+
+    if (!conversaId) {
+
+      nome.textContent =
+        "Conversa inválida";
+
+      mensagens.innerHTML = "";
+
+      form.style.display =
+        "none";
+
+    }
+
+
+    // =====================================================
+    // INICIAR
+    // =====================================================
+
+    async function iniciar() {
+
+      if (!conversaId) return;
+
+
+      try {
+
+        // Login anônimo
+        const resultado =
+          await signInAnonymously(auth);
+
+
+        const user =
+          resultado.user;
+
+
+        // =================================================
+        // GARANTIR USUÁRIO
+        // =================================================
+
+        await setDoc(
+          doc(
+            db,
+            "users",
+            user.uid
+          ),
+          {
+
+            uid: user.uid,
+
+            name: "Usuário",
+
+            lastLogin:
+              serverTimestamp()
+
+          },
+          {
+            merge: true
+          }
+        );
+
+
+        // =================================================
+        // BUSCAR CONVERSA
+        // =================================================
+
+        const conversaRef =
+          doc(
+            db,
+            "conversations",
+            conversaId
+          );
+
+
+        const conversaSnap =
+          await getDoc(conversaRef);
+
+
+        if (!conversaSnap.exists()) {
+
+          nome.textContent =
+            "Conversa não encontrada";
+
+          form.style.display =
+            "none";
+
+          mensagens.innerHTML = "";
+
+          return;
+
+        }
+
+
+        const conversa =
+          conversaSnap.data();
+
+
+        // =================================================
+        // OUTRO USUÁRIO
+        // =================================================
+
+        const outroUid =
+          conversa.participants.find(
+            id => id !== user.uid
+          );
+
+
+        nome.textContent =
+          conversa.names?.[outroUid] ||
+          "Usuário";
+
+
+        // =================================================
+        // MENSAGENS
+        // =================================================
+
+        const mensagensRef =
+          collection(
+            db,
+            "conversations",
+            conversaId,
+            "messages"
+          );
+
+
+        const q =
+          query(
+            mensagensRef,
+            orderBy(
+              "createdAt",
+              "asc"
+            )
+          );
+
+
+        onSnapshot(
+          q,
+          (snapshot) => {
+
+            mensagens.innerHTML = "";
+
+
+            snapshot.forEach(
+              (messageDoc) => {
+
+                const mensagem =
+                  messageDoc.data();
+
+
+                const minha =
+                  mensagem.senderId ===
+                  user.uid;
+
+
+                const item =
+                  document.createElement("div");
+
+
+                item.className =
+                  minha
+                    ? "flex justify-end"
+                    : "flex justify-start";
+
+
+                item.innerHTML = `
+
+                  <div
+                    class="
+                      max-w-[75%]
+                      px-4 py-2
+                      rounded-2xl
+                      ${
+                        minha
+                          ? "bg-black text-white"
+                          : "bg-gray-200 text-gray-900"
+                      }
+                    "
+                  >
+                    ${mensagem.text || ""}
+                  </div>
+
+                `;
+
+
+                mensagens.appendChild(
+                  item
+                );
+
+              }
+            );
+
+
+            mensagens.scrollTop =
+              mensagens.scrollHeight;
+
+          }
+        );
+
+
+        // =================================================
+        // ENVIAR
+        // =================================================
+
+        form.onsubmit =
+          async (event) => {
+
+            event.preventDefault();
+
+
+            const valor =
+              texto.value.trim();
+
+
+            if (!valor) return;
+
+
+            texto.value = "";
+
+
+            try {
+
+              await addDoc(
+                mensagensRef,
+                {
+
+                  text: valor,
+
+                  senderId:
+                    user.uid,
+
+                  createdAt:
+                    serverTimestamp()
+
+                }
+              );
+
+
+              await updateDoc(
+                conversaRef,
+                {
+
+                  lastMessage:
+                    valor,
+
+                  updatedAt:
+                    serverTimestamp()
+
+                }
+              );
+
+
+            } catch (error) {
+
+              console.error(error);
+
+              alert(
+                "Erro ao enviar mensagem."
+              );
+
+            }
+
+          };
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        nome.textContent =
+          "Erro";
+
+        mensagens.innerHTML = `
+          <div class="text-center text-red-500">
+            ${error.message}
+          </div>
+        `;
+
+      }
+
+    }
+
+
+    iniciar();
+
+  </script>
+
+</body>
+
+</html>
+
