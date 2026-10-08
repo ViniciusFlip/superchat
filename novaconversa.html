@@ -1,0 +1,322 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Nova conversa</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+  <main class="max-w-md mx-auto min-h-screen bg-white">
+
+    <!-- TOPO -->
+    <header class="p-4 border-b flex items-center gap-3">
+
+      <a
+        href="listaconversas.html"
+        class="text-xl"
+      >
+        ←
+      </a>
+
+      <h1 class="text-xl font-bold">
+        Nova conversa
+      </h1>
+
+    </header>
+
+
+    <!-- USUÁRIOS -->
+    <section id="lista">
+
+      <div class="p-8 text-center text-gray-400">
+        Carregando usuários...
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <script type="module">
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    import {
+      initializeApp
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+    import {
+      getAuth,
+      signInAnonymously
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      serverTimestamp,
+      collection,
+      getDocs
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    // =====================================================
+    // SUAS CREDENCIAIS
+    // =====================================================
+
+    const firebaseConfig = {
+
+      apiKey: "COLOQUE_AQUI",
+      authDomain: "COLOQUE_AQUI",
+      projectId: "COLOQUE_AQUI",
+      storageBucket: "COLOQUE_AQUI",
+      messagingSenderId: "COLOQUE_AQUI",
+      appId: "COLOQUE_AQUI"
+
+    };
+
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    const db =
+      getFirestore(app);
+
+
+    const lista =
+      document.getElementById("lista");
+
+
+    // =====================================================
+    // INICIAR
+    // =====================================================
+
+    async function iniciar() {
+
+      try {
+
+        const resultado =
+          await signInAnonymously(auth);
+
+
+        const user =
+          resultado.user;
+
+
+        // Garantir que o usuário atual existe
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+
+            uid: user.uid,
+
+            name: "Usuário",
+
+            lastLogin:
+              serverTimestamp()
+
+          },
+          {
+            merge: true
+          }
+        );
+
+
+        // Buscar todos os usuários
+        const snapshot =
+          await getDocs(
+            collection(db, "users")
+          );
+
+
+        lista.innerHTML = "";
+
+
+        snapshot.forEach((documento) => {
+
+          // Não mostrar a própria conta
+          if (documento.id === user.uid) {
+            return;
+          }
+
+
+          const dados =
+            documento.data();
+
+
+          const nome =
+            dados.name ||
+            "Usuário";
+
+
+          const item =
+            document.createElement("button");
+
+
+          item.className =
+            "w-full flex items-center gap-3 p-4 border-b hover:bg-gray-50 text-left";
+
+
+          item.innerHTML = `
+
+            <div
+              class="w-12 h-12 rounded-full bg-gray-200
+                     flex items-center justify-center
+                     font-bold text-gray-600"
+            >
+              ${nome.charAt(0).toUpperCase()}
+            </div>
+
+            <div class="flex-1">
+
+              <div class="font-semibold">
+                ${nome}
+              </div>
+
+              <div class="text-sm text-gray-400">
+                Iniciar conversa
+              </div>
+
+            </div>
+
+          `;
+
+
+          // =================================================
+          // CRIAR CONVERSA
+          // =================================================
+
+          item.onclick = async () => {
+
+            try {
+
+              item.disabled = true;
+
+
+              const ids = [
+                user.uid,
+                documento.id
+              ].sort();
+
+
+              const conversaId =
+                ids.join("_");
+
+
+              await setDoc(
+                doc(
+                  db,
+                  "conversations",
+                  conversaId
+                ),
+                {
+
+                  participants: ids,
+
+                  names: {
+
+                    [user.uid]:
+                      "Usuário",
+
+                    [documento.id]:
+                      nome
+
+                  },
+
+                  lastMessage: "",
+
+                  updatedAt:
+                    serverTimestamp()
+
+                },
+                {
+                  merge: true
+                }
+              );
+
+
+              // Abrir a conversa
+              window.location.href =
+                `chat.html?id=${conversaId}`;
+
+
+            } catch (error) {
+
+              console.error(error);
+
+              alert(
+                "Erro: " +
+                error.message
+              );
+
+              item.disabled = false;
+
+            }
+
+          };
+
+
+          lista.appendChild(item);
+
+        });
+
+
+        if (!lista.children.length) {
+
+          lista.innerHTML = `
+            <div class="p-8 text-center text-gray-400">
+              Nenhum outro usuário cadastrado.
+            </div>
+          `;
+
+        }
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        lista.innerHTML = `
+          <div class="p-8 text-center text-red-500">
+
+            Erro ao carregar usuários.
+
+            <div class="text-xs mt-2 break-all">
+              ${error.message}
+            </div>
+
+          </div>
+        `;
+
+      }
+
+    }
+
+
+    iniciar();
+
+  </script>
+
+</body>
+
+</html>
+
