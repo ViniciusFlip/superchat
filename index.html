@@ -1,0 +1,209 @@
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Entrar</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+  <main class="w-full max-w-sm bg-white p-6 rounded-2xl shadow">
+
+    <h1 class="text-2xl font-bold mb-2">
+      Chat
+    </h1>
+
+    <p class="text-gray-500 mb-6">
+      Entre para continuar
+    </p>
+
+    <button
+      id="entrar"
+      class="w-full bg-black text-white py-3 rounded-xl"
+    >
+      Entrar
+    </button>
+
+    <div
+      id="status"
+      class="mt-4 text-sm text-gray-500 text-center"
+    >
+      Aguardando...
+    </div>
+
+  </main>
+
+
+  <script type="module">
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    import {
+      initializeApp
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+    import {
+      getAuth,
+      signInAnonymously,
+      onAuthStateChanged
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      serverTimestamp
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    // =====================================================
+    // SUAS CREDENCIAIS
+    // =====================================================
+
+    const firebaseConfig = {
+
+      apiKey: "COLOQUE_AQUI",
+      authDomain: "COLOQUE_AQUI",
+      projectId: "COLOQUE_AQUI",
+      storageBucket: "COLOQUE_AQUI",
+      messagingSenderId: "COLOQUE_AQUI",
+      appId: "COLOQUE_AQUI"
+
+    };
+
+
+    // =====================================================
+    // INICIAR FIREBASE
+    // =====================================================
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    const db =
+      getFirestore(app);
+
+
+    const entrar =
+      document.getElementById("entrar");
+
+    const status =
+      document.getElementById("status");
+
+
+    // =====================================================
+    // ENTRAR
+    // =====================================================
+
+    entrar.onclick = async () => {
+
+      try {
+
+        entrar.disabled = true;
+
+        status.textContent =
+          "Entrando...";
+
+
+        // Login anônimo
+        const resultado =
+          await signInAnonymously(auth);
+
+
+        const user =
+          resultado.user;
+
+
+        // Cadastro básico
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+
+            uid: user.uid,
+
+            name: "Usuário",
+
+            createdAt:
+              serverTimestamp(),
+
+            lastLogin:
+              serverTimestamp()
+
+          },
+          {
+            merge: true
+          }
+        );
+
+
+        status.innerHTML = `
+          <div class="text-green-600 font-medium">
+            Entrada realizada!
+          </div>
+
+          <div class="mt-2 text-xs break-all text-gray-400">
+            UID: ${user.uid}
+          </div>
+        `;
+
+
+        // Por enquanto NÃO redireciona.
+        // Primeiro vamos confirmar que o teste funciona.
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.innerHTML = `
+          <div class="text-red-600">
+            Erro ao entrar
+          </div>
+
+          <div class="mt-2 text-xs break-all">
+            ${error.message}
+          </div>
+        `;
+
+        entrar.disabled = false;
+
+      }
+
+    };
+
+
+    // =====================================================
+    // VERIFICAR USUÁRIO
+    // =====================================================
+
+    onAuthStateChanged(auth, (user) => {
+
+      if (user) {
+
+        console.log(
+          "Usuário autenticado:",
+          user.uid
+        );
+
+      }
+
+    });
+
+  </script>
+
+</body>
+</html>
+```
