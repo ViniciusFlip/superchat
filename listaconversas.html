@@ -1,0 +1,356 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Conversas</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+
+  <main class="max-w-md mx-auto min-h-screen bg-white">
+
+    <!-- TOPO -->
+    <header class="p-4 border-b flex items-center justify-between">
+
+      <div>
+        <h1 class="text-xl font-bold">
+          Conversas
+        </h1>
+
+        <p
+          id="status"
+          class="text-xs text-gray-400"
+        >
+          Carregando...
+        </p>
+      </div>
+
+      <a
+        href="novaconversa.html"
+        class="bg-black text-white px-4 py-2 rounded-xl text-sm"
+      >
+        Nova
+      </a>
+
+    </header>
+
+
+    <!-- LISTA -->
+    <section id="lista">
+
+      <div class="p-8 text-center text-gray-400">
+        Carregando conversas...
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <script type="module">
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    import {
+      initializeApp
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+
+    import {
+      getAuth,
+      signInAnonymously,
+      onAuthStateChanged
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      serverTimestamp,
+      collection,
+      query,
+      where,
+      orderBy,
+      onSnapshot
+    } from
+      "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+
+    // =====================================================
+    // SUAS CREDENCIAIS
+    // =====================================================
+
+    const firebaseConfig = {
+
+      apiKey: "COLOQUE_AQUI",
+      authDomain: "COLOQUE_AQUI",
+      projectId: "COLOQUE_AQUI",
+      storageBucket: "COLOQUE_AQUI",
+      messagingSenderId: "COLOQUE_AQUI",
+      appId: "COLOQUE_AQUI"
+
+    };
+
+
+    // =====================================================
+    // FIREBASE
+    // =====================================================
+
+    const app =
+      initializeApp(firebaseConfig);
+
+    const auth =
+      getAuth(app);
+
+    const db =
+      getFirestore(app);
+
+
+    const lista =
+      document.getElementById("lista");
+
+    const status =
+      document.getElementById("status");
+
+
+    // =====================================================
+    // ENTRAR
+    // =====================================================
+
+    async function iniciar() {
+
+      try {
+
+        status.textContent =
+          "Entrando...";
+
+
+        const resultado =
+          await signInAnonymously(auth);
+
+
+        const user =
+          resultado.user;
+
+
+        // Garantir cadastro
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+
+            uid: user.uid,
+
+            name: "Usuário",
+
+            lastLogin:
+              serverTimestamp()
+
+          },
+          {
+            merge: true
+          }
+        );
+
+
+        status.textContent =
+          "Online";
+
+
+        carregarConversas(user.uid);
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "Erro";
+
+        lista.innerHTML = `
+          <div class="p-8 text-center text-red-500">
+            ${error.message}
+          </div>
+        `;
+
+      }
+
+    }
+
+
+    // =====================================================
+    // LISTAR CONVERSAS
+    // =====================================================
+
+    function carregarConversas(uid) {
+
+      const q =
+        query(
+          collection(db, "conversations"),
+
+          where(
+            "participants",
+            "array-contains",
+            uid
+          ),
+
+          orderBy(
+            "updatedAt",
+            "desc"
+          )
+        );
+
+
+      onSnapshot(
+        q,
+
+        (snapshot) => {
+
+          lista.innerHTML = "";
+
+
+          if (snapshot.empty) {
+
+            lista.innerHTML = `
+              <div class="p-10 text-center">
+
+                <div class="text-gray-400">
+                  Nenhuma conversa
+                </div>
+
+                <a
+                  href="novaconversa.html"
+                  class="inline-block mt-4 bg-black text-white px-4 py-2 rounded-xl"
+                >
+                  Iniciar conversa
+                </a>
+
+              </div>
+            `;
+
+            return;
+
+          }
+
+
+          snapshot.forEach((documento) => {
+
+            const conversa =
+              documento.data();
+
+
+            const outroUid =
+              conversa.participants.find(
+                id => id !== uid
+              );
+
+
+            const nome =
+              conversa.names?.[outroUid] ||
+              "Usuário";
+
+
+            const mensagem =
+              conversa.lastMessage ||
+              "Nova conversa";
+
+
+            const item =
+              document.createElement("a");
+
+
+            item.href =
+              `chat.html?id=${documento.id}`;
+
+
+            item.className =
+              "flex items-center gap-3 p-4 border-b hover:bg-gray-50";
+
+
+            item.innerHTML = `
+
+              <div
+                class="w-12 h-12 rounded-full bg-gray-200
+                       flex items-center justify-center
+                       font-bold text-gray-600"
+              >
+                ${nome.charAt(0).toUpperCase()}
+              </div>
+
+              <div class="flex-1 min-w-0">
+
+                <div class="font-semibold truncate">
+                  ${nome}
+                </div>
+
+                <div class="text-sm text-gray-500 truncate">
+                  ${mensagem}
+                </div>
+
+              </div>
+
+            `;
+
+
+            lista.appendChild(item);
+
+          });
+
+        },
+
+        (error) => {
+
+          console.error(error);
+
+          lista.innerHTML = `
+            <div class="p-8 text-center text-red-500">
+              Erro ao carregar conversas.
+              <div class="text-xs mt-2">
+                ${error.message}
+              </div>
+            </div>
+          `;
+
+        }
+
+      );
+
+    }
+
+
+    // =====================================================
+    // OBSERVAR LOGIN
+    // =====================================================
+
+    onAuthStateChanged(
+      auth,
+      (user) => {
+
+        if (user) {
+
+          carregarConversas(
+            user.uid
+          );
+
+        }
+
+      }
+    );
+
+
+    iniciar();
+
+  </script>
+
+</body>
+
+</html>
+
